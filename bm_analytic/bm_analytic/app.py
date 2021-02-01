@@ -12,7 +12,7 @@ from gensim import models
 df_basic = pd.read_csv('../bm_analytic/data/BM_DataSet_1000.csv', index_col=0)
 # df_basic = pd.read_csv('../data/BM_DataSet.csv', index_col=0)
 #Import doc2vec model
-d2v = models.Doc2Vec.load('../bm_analytic/data/doc2vec.model_M')
+d2v = models.Doc2Vec.load('../bm_analytic/data/doc2vec.model')
 
 #filter後
 fil_df = df_basic.copy()
