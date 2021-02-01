@@ -1,20 +1,19 @@
+from numpy import nan
+import pandas as pd
 import dash  
 import dash_core_components as dcc 
 import dash_html_components as html
 import dash_daq as daq
 from dash.dependencies import Input, Output
-import pandas as pd
-from gensim import models
-from numpy import nan
-#from gensim import models
 import plotly.express as px
+from gensim import models
 
-# ①データ読み込み
-# df = pd.read_csv('./data/test.csv', index_col=0)
-# df = pd.read_csv('./data/BM_DataSet.csv', index_col=0)
+#Import Comanies Data
+df_basic = pd.read_csv('../bm_analytic/data/BM_DataSet_1000.csv', index_col=0)
+# df_basic = pd.read_csv('../data/BM_DataSet.csv', index_col=0)
+#Import doc2vec model
+d2v = models.Doc2Vec.load('../bm_analytic/data/doc2vec.model_M')
 
-#基本情報表示用テーブル
-df_basic = pd.read_csv('./data/BM_DataSet_basicinfo.csv', index_col=0)
 #filter後
 fil_df = df_basic.copy()
 
@@ -33,34 +32,31 @@ mainactivity = df_master['Main_activity'].str.split('; ', expand=True)
 mainactivity = mainactivity.iloc[1]
 
 
-#doc2vec model
-d2v = models.Doc2Vec.load("./model/doc2vec.model_M")
-
 #word vs lists similarities
 def get_similarities(word, lists):
     results = []
     for llist in lists:
         if type(llist) == str:
-            (results.append(d2v.docvecs.similarity_unseen_docs(d2v, word, llist.split(" ")))) 
+            (results.append(d2v.docvecs.similarity_unseen_docs(d2v, word, llist.split(' ')))) 
         else:
             results.append(nan)
     return pd.Series(results)
 
 #similarities companies
-def show_similar_companies(word, df, x="Operating Profits Margin_2018"):
+def show_similar_companies(word, df, x='Operating Profits Margin_2018'):
     results_df = pd.DataFrame()
     results_df = df.copy()
-    results = get_similarities([word],list(df_basic["Main products and services"]))
+    results = get_similarities([word],list(df_basic['Primary_business_line']))
     results = results.apply(abs)
-    results_df["Similarity"] = results
+    results_df['Similarity'] = results
     
-    return results_df[["Company_Name", "Full_overview", "Main products and services", x, "Similarity"]]
+    return results_df[['Company_Name', 'Full_overview', 'Primary_business_line', x, 'Similarity']]
 
 #make plot
 def make_plot(df, word, x):
     tempdf = show_similar_companies(word, df, x)
-    tempdf.columns = ["Name", "overview", "mainproducts", x, "Similarity"]
-    return px.scatter(data_frame=tempdf, x=x, y="Similarity", hover_data=["Name"],title=word)
+    tempdf.columns = ['Name', 'overview', 'mainproducts', x, 'Similarity']
+    return px.scatter(data_frame=tempdf, x=x, y='Similarity', hover_data=['Name'],title=word)
     # fig.show()
 
 #表の作成
@@ -262,11 +258,8 @@ app.layout = html.Div(id='my-div',children=[
            #Product Input
            html.Div(id='Product', children=[
                 html.P('Product:' ,className='fil',style={'padding':'5px','width': '30%'}),
-                dcc.Input(id='ProductVal', type='text', value='product', style={'width':'100%','padding':'5px'})
-            ],style={'display':'flex','width':'100%','height':'10%'}),
-
-            #Filter Button
-            html.Button('CALCULATE', id='filButton',style={'width': '100%'})
+                dcc.Input(id='ProductVal', type='text', value='', style={'width':'100%','padding':'5px'})
+            ],style={'display':'flex','width':'100%','height':'10%'})
 
         ], style={
             'width': 'calc(100% *1/ 5)',
@@ -304,7 +297,7 @@ app.layout = html.Div(id='my-div',children=[
                     min=0,
                     max=10,
                     value=0,
-                    handleLabel={"showCurrentValue": True,"label": "%"},
+                    handleLabel={'showCurrentValue': True,'label': '%'},
                     step=0.1
                 )
             ], style={
@@ -320,7 +313,7 @@ app.layout = html.Div(id='my-div',children=[
                     min=0,
                     max=100,
                     value=50,
-                    handleLabel={"showCurrentValue": True,"label": "%"},
+                    handleLabel={'showCurrentValue': True,'label': '%'},
                     step=0.1
                 )
             ], style={
@@ -334,10 +327,13 @@ app.layout = html.Div(id='my-div',children=[
                 dcc.Dropdown(
                     id='x_axisVal',
                     options=[{'label': 'OM', 'value': 1},{'label': 'TCM', 'value': 2},{'label': 'Berry Ratiio', 'value': 3}],
-                    value='',
+                    value=1,
                     style={'padding':'5px','width':'100%'}
                 )
-            ])
+            ]),
+
+            #Filter Button
+            html.Button('CALCULATE', id='filButton',style={'margin-top': '25px', 'width': '100%', 'height': '10%','color':'white','background-color': '#3a7cef','letter-spacing':'0.1rem'})
             
         ], style={
             'width': 'calc(100%  *1.5/ 10)',
@@ -355,7 +351,7 @@ app.layout = html.Div(id='my-div',children=[
         #3列目
         html.Div(id='Analytics',children=[
                 html.P('Graph'),
-                dcc.Graph(id="graph", style={"width": "100%", "display": "inline-block"})
+                dcc.Graph(id='graph', style={'width': '100%', 'display': 'inline-block'})
         ], style={
             'width': 'calc(100% *4/ 10)',
             'border-radius': '5px',
@@ -389,7 +385,7 @@ app.layout = html.Div(id='my-div',children=[
                 }),
 
                 #Output Button
-                html.Button('Output', id='outputButton',style={'width': '100%'})
+                html.Button('Output', id='outputButton',style={'margin-top': '25px', 'width': '100%', 'height': '10%','color':'white','background-color': '#3a7cef','letter-spacing':'0.1rem'})
 
         ], style={
             'width': 'calc(100% / 5)',
@@ -408,7 +404,7 @@ app.layout = html.Div(id='my-div',children=[
     'font-size': '1em',
     'line-height': '1.6',
     'font-weight': '400',
-    'font-family': '"Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    'font-family': '"Open Sans", "HelveticaNeue", "Helvetica Neue", "Helvetica, Arial, sans-serif"',
     'color': 'rgb(50, 50, 50)',
     'margin': '2%'
 })
@@ -420,7 +416,7 @@ app.layout = html.Div(id='my-div',children=[
 )
 
 def update_target_company(value):
-    if value is None or value == "" or not value:
+    if value is None or value == '' or not value:
         return
     else:
         df_target = df_master[df_master['Company_Name']==value]
@@ -444,27 +440,28 @@ def update_target_company(value):
 
 def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVal,AvailableYearsVal,yrLossVal,ProductVal):
     fil_df = df_basic.copy()
-    if  StatusVal is None or StatusVal == "" or not StatusVal:
+    if  StatusVal is None or StatusVal == '' or not StatusVal:
         pass
     else:
         fil_df = df_basic[df_basic['Status'].isin(StatusVal)]
 
-    if IndepVal is None or IndepVal == "" or not IndepVal:
+    if IndepVal is None or IndepVal == '' or not IndepVal:
         pass
     else:
         fil_df = fil_df[fil_df['Indep'].isin(IndepVal)]
 
-    if CountryVal is None or CountryVal == "" or not CountryVal:
+    if CountryVal is None or CountryVal == '' or not CountryVal:
         pass
     else:
         fil_df = fil_df[fil_df['Country'].isin(CountryVal)]
 
-    if USSICVal is None or USSICVal == "" or not USSICVal:
+    if USSICVal is None or USSICVal == '' or not USSICVal:
         pass
     else:
         fil_df = fil_df[fil_df['US_SIC_Primary_code(s)_(M)'].isin(USSICVal)]
 
-    if ProductVal is None or ProductVal == "" or not ProductVal:
+    if ProductVal is None or ProductVal == '' or not ProductVal:
+        y = ''
         pass
     else:
         y = ProductVal
@@ -475,8 +472,8 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
     #PLI OM 2016~2018 平均
     fil_df['OM'] = (fil_df['Operating Profits Margin_2018']+fil_df['Operating Profits Margin_2017']+fil_df['Operating Profits Margin_2016'])/3
     #横軸
-    x = "OM"
-    #x = "Operating Profits Margin_2018"
+    x = 'OM'
+    #x = 'Operating Profits Margin_2018'
     return  make_plot(fil_df, y, x)
 
 
@@ -487,8 +484,8 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
 )
 
 def update_output_div(input_value):
-    if input_value is None or input_value == "" or not input_value:
-        dff = fil_df
+    if input_value is None or input_value == '' or not input_value:
+        dff = fil_df[fil_df['Company_Name']=='']
     else:
         selectedlist = []
         for data in input_value['points']:
