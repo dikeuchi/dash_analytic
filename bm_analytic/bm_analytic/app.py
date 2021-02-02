@@ -18,7 +18,7 @@ fil_df = df_basic.copy()
 #master info
 df_master = df_basic[['Company_Name','Country','City','Website','Status','Indep','Number_of_employees_2018','US_SIC_Primary_code(s)_(M)','Main_activity','Primary_business_line','Full_overview']]
 
-#option
+#options
 indep = df_master['Indep'].unique()
 indep.sort()
 country = df_master['Country'].unique()
@@ -400,77 +400,22 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
     #Covered Year
     YearSpan= CoveredYearVal[1]+1 - CoveredYearVal[0]
 
-    if  StatusVal is None or StatusVal == '' or not StatusVal:
-        pass
-    else:
-        fil_df = df_basic[df_basic['Status'].isin(StatusVal)]
-
-    if IndepVal is None or IndepVal == '' or not IndepVal:
-        pass
-    else:
-        fil_df = fil_df[fil_df['Indep'].isin(IndepVal)]
-
-    if CountryVal is None or CountryVal == '' or not CountryVal:
-        pass
-    else:
-        fil_df = fil_df[fil_df['Country'].isin(CountryVal)]
-
-    if USSICVal is None or USSICVal == '' or not USSICVal:
-        pass
-    else:
-        fil_df = fil_df[fil_df['US_SIC_Primary_code(s)_(M)'].isin(USSICVal)]
-
-    if ProductVal is None or ProductVal == '' or not ProductVal:
-        y = ''
-        pass
-    else:
-        y = ProductVal
-    
-    if MainactivityVal is None or MainactivityVal == '' or not MainactivityVal:
-        pass
-    else:
-        fil_df = fil_df[fil_df['Main_activity'].isin(MainactivityVal)]
-
-    #R&D/sales = Research_&_Development_expenses ÷ Operating_Revenue_/_Turnover
-    if RDsalesVal is None or RDsalesVal == '' or not RDsalesVal or 0:
-        pass
-    else:
-        fil_df = fil_df.assign(RDsales_total=0)
-        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
-            fil_df['RDsales_total'] = fil_df['RDsales_total'] + (fil_df['Research_&_Development_expenses_th_LCU_' + str(i)] / fil_df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
-        fil_df['RD/sales'] = fil_df['RDsales_total']/(YearSpan)
-        # filter
-        fil_df = fil_df[fil_df['RD/sales'] <= RDsalesVal/100]
-
+    #filter options
+    fil_df = fil_func('Status',StatusVal,fil_df)
+    fil_df = fil_func('Indep',IndepVal,fil_df)
+    fil_df = fil_func('Country',CountryVal,fil_df)
+    fil_df = fil_func('US_SIC_Primary_code(s)_(M)',USSICVal,fil_df)
+    fil_df = fil_func('Main_activity',MainactivityVal,fil_df)
+    #filter R&D/sales = Research_&_Development_expenses ÷ Operating_Revenue_/_Turnover
+    fil_df = fil_RDsales_func(RDsalesVal,CoveredYearVal,YearSpan,fil_df)
     #SGA/sales = SGA ÷ Operating_Revenue_/_Turnover
-    if SGAsalesVal is None or SGAsalesVal == '' or not SGAsalesVal or 0:
-        pass
-    else:
-        fil_df = fil_df.assign(SGAsales_total=0)
-        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
-            fil_df['SGAsales_total'] = fil_df['SGAsales_total'] + (fil_df['SGA_' + str(i)] / fil_df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
-        fil_df['SGA/sales'] = fil_df['SGAsales_total']/(YearSpan)
-        # filter
-        fil_df = fil_df[fil_df['SGA/sales'] <= SGAsalesVal/100]
+    fil_df = fil_SGAsales_func(SGAsalesVal,CoveredYearVal,YearSpan,fil_df)
 
     #最大100
-    fil_df = fil_df.iloc[:100]
+    fil_df = fil_df.reset_index().iloc[:100]
 
-    #PLI OM = Operating Profit ÷ Operating Revenue 
-    fil_df['OM_total'] = 0
-    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
-        fil_df['OM_total'] = fil_df['OM_total'] + fil_df['Operating Profits Margin_' + str(i)]
-    fil_df['OM'] = fil_df['OM_total']/(YearSpan)
-    #PLI TCM = Operating P/L ÷ (Operating Revenue - Operating P/L)
-    fil_df['TCM_total'] = 0
-    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
-        fil_df['TCM_total'] = fil_df['TCM_total'] + fil_df['Total Cost-Markup_' + str(i)]
-    fil_df['TCM'] = fil_df['TCM_total']/(YearSpan)
-    #Berry Ratio = Gross Profit ÷ Selling, General & Administrative Expenses
-    fil_df['BerryRatio_total'] = 0
-    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
-        fil_df['BerryRatio_total'] = fil_df['BerryRatio_total'] + fil_df['Berry Ratio_' + str(i)]
-    fil_df['BerryRatio'] = fil_df['BerryRatio_total']/(YearSpan)
+    #Create PLI data with coverd year
+    fil_df = create_PLI_data(CoveredYearVal,YearSpan,fil_df)
 
     #横軸
     if x_axisVal is None or x_axisVal == '' or not x_axisVal:
@@ -478,6 +423,12 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
     else:
         #default = OM
         x = x_axisVal
+    #縦軸
+    if ProductVal is None or ProductVal == '' or not ProductVal:
+        y = ''
+        pass
+    else:
+        y = ProductVal
     
     return  make_plot(fil_df, y, x)
 
@@ -497,6 +448,7 @@ def update_output_div(input_value):
             selectedlist += (data['customdata'])
         dff = fil_df[fil_df['Company_Name'].isin(selectedlist)]
 
+        # create output table dom
         output_table = dash_table.DataTable(
             id='table',
             columns=[{"name": i, "id": i} for i in dff.columns],

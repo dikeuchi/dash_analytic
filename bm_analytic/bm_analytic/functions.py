@@ -36,6 +36,66 @@ def generate_table(dataframe, max_rows=10):
 
 #########################################################
 # 2021/2/2                                              #
+# filter functions                                      #
+#                                                       #
+#########################################################
+#filter function
+def fil_func(col_nm,val,df):
+    if  val is None or val == '' or not val:
+        pass
+    else:
+        df = df[df[col_nm].isin(val)]
+    return df
+#filter function with R&D/sales = Research_&_Development_expenses ÷ Operating_Revenue_/_Turnover
+def fil_RDsales_func(RDsalesVal,CoveredYearVal,YearSpan,df):
+    if RDsalesVal is None or RDsalesVal == '' or not RDsalesVal or 0:
+        pass
+    else:
+        df = df.assign(RDsales_total=0)
+        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+            df['RDsales_total'] = df['RDsales_total'] + (df['Research_&_Development_expenses_th_LCU_' + str(i)] / df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
+        df['RD/sales'] = df['RDsales_total']/(YearSpan)
+        # filter
+        df = df[df['RD/sales'] <= RDsalesVal/100]
+    return  df
+#filter function with SGA/sales = SGA ÷ Operating_Revenue_/_Turnover
+def fil_SGAsales_func(SGAsalesVal,CoveredYearVal,YearSpan,df):
+    if SGAsalesVal is None or SGAsalesVal == '' or not SGAsalesVal or 0:
+        pass
+    else:
+        df = df.assign(SGAsales_total=0)
+        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+            df['SGAsales_total'] = df['SGAsales_total'] + (df['SGA_' + str(i)] / df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
+        df['SGA/sales'] = df['SGAsales_total']/(YearSpan)
+        # filter
+        df = df[df['SGA/sales'] <= SGAsalesVal/100]
+    return df
+
+#########################################################
+# 2021/2/2                                              #
+# Create PLI data with coverd year                      #
+#                                                       #
+#########################################################
+def create_PLI_data(CoveredYearVal,YearSpan,df):
+    #PLI OM = Operating Profit ÷ Operating Revenue 
+    df['OM_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        df['OM_total'] = df['OM_total'] + df['Operating Profits Margin_' + str(i)]
+    df['OM'] = df['OM_total']/(YearSpan)
+    #PLI TCM = Operating P/L ÷ (Operating Revenue - Operating P/L)
+    df['TCM_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        df['TCM_total'] = df['TCM_total'] + df['Total Cost-Markup_' + str(i)]
+    df['TCM'] = df['TCM_total']/(YearSpan)
+    #Berry Ratio = Gross Profit ÷ Selling, General & Administrative Expenses
+    df['BerryRatio_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        df['BerryRatio_total'] = df['BerryRatio_total'] + df['Berry Ratio_' + str(i)]
+    df['BerryRatio'] = df['BerryRatio_total']/(YearSpan)
+    return df
+
+#########################################################
+# 2021/2/2                                              #
 # create pls × words similarities graph                 #
 # x=pls, y = words vs companies fullocerview discription#
 #########################################################
