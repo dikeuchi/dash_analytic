@@ -1,6 +1,7 @@
 from numpy import nan
 import pandas as pd
 import dash  
+import dash_table
 import dash_core_components as dcc 
 import dash_html_components as html
 import dash_daq as daq
@@ -8,80 +9,24 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 from gensim import models
 
+from functions import *
+
 #Import Comanies Data
 df_basic = pd.read_csv('../bm_analytic/data/BM_DataSet_1000.csv', index_col=0)
-# df_basic = pd.read_csv('../data/BM_DataSet.csv', index_col=0)
-#Import doc2vec model
-d2v = models.Doc2Vec.load('../bm_analytic/data/doc2vec.model')
-
-#filter後
+#global dataframe, filter
 fil_df = df_basic.copy()
+#master info
+df_master = df_basic[['Company_Name','Country','City','Website','Status','Indep','Number_of_employees_2018','US_SIC_Primary_code(s)_(M)','Main_activity','Primary_business_line','Full_overview']]
 
-#master情報のみ
-df_master = df_basic.drop(columns=['Operating Profits Margin_2018','Operating Profits Margin_2017','Operating Profits Margin_2016','Operating Profits Margin_2015','Operating Profits Margin_2014','Operating Profits Margin_2013','Operating Profits Margin_2012','Operating Profits Margin_2011','Operating Profits Margin_2010','Total Cost-Markup_2018','Total Cost-Markup_2017','Total Cost-Markup_2016','Total Cost-Markup_2015','Total Cost-Markup_2014','Total Cost-Markup_2013','Total Cost-Markup_2012','Total Cost-Markup_2011','Total Cost-Markup_2010','SGA_2018','SGA_2017','SGA_2016','SGA_2015','SGA_2014','SGA_2013','SGA_2012','SGA_2011','SGA_2010','Berry Ratio_2018','Berry Ratio_2017','Berry Ratio_2016','Berry Ratio_2015','Berry Ratio_2014','Berry Ratio_2013','Berry Ratio_2012','Berry Ratio_2011','Berry Ratio_2010'])
-
-#sort用
+#option
 indep = df_master['Indep'].unique()
 indep.sort()
 country = df_master['Country'].unique()
 country.sort()
 ussic = df_master['US_SIC_Primary_code(s)_(M)'].unique()
 ussic.sort()
-#functionの抽出
 mainactivity = df_master['Main_activity'].str.split('; ', expand=True)
-mainactivity = mainactivity.iloc[1]
-
-
-#word vs lists similarities
-def get_similarities(word, lists):
-    results = []
-    for llist in lists:
-        if type(llist) == str:
-            (results.append(d2v.docvecs.similarity_unseen_docs(d2v, word, llist.split(' ')))) 
-        else:
-            results.append(nan)
-    return pd.Series(results)
-
-#similarities companies
-def show_similar_companies(word, df, x='Operating Profits Margin_2018'):
-    results_df = pd.DataFrame()
-    results_df = df.copy()
-    results = get_similarities([word],list(df_basic['Primary_business_line']))
-    results = results.apply(abs)
-    results_df['Similarity'] = results
-    
-    return results_df[['Company_Name', 'Full_overview', 'Primary_business_line', x, 'Similarity']]
-
-#make plot
-def make_plot(df, word, x):
-    tempdf = show_similar_companies(word, df, x)
-    tempdf.columns = ['Name', 'overview', 'mainproducts', x, 'Similarity']
-    return px.scatter(data_frame=tempdf, x=x, y='Similarity', hover_data=['Name'],title=word)
-    # fig.show()
-
-#表の作成
-def generate_table(dataframe, max_rows=10):
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in dataframe.columns],style={
-            'max-width': '300px',
-            'overflow': 'hidden',
-            'text-overflow': 'ellipsis',
-            'white-space': 'nowrap'
-        })] +
-
-        # Body
-        [html.Tr([
-            html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-        ],
-        style={
-            'max-width': '300px',
-            'overflow': 'hidden',
-            'text-overflow': 'ellipsis',
-            'white-space': 'nowrap'
-        }
-        ) for i in range(min(len(dataframe), max_rows))]
-    )
+mainactivity = mainactivity[0].dropna().unique()
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -291,9 +236,9 @@ app.layout = html.Div(id='my-div',children=[
 
             #R&D/sales
             html.P('R&D/sales:' ,className='dynamic',style={'padding':'5px','padding-top': '50px'}),
-            html.Div(id='R&Dsales',children=[
+            html.Div(id='RDsales',children=[
                 daq.Slider(
-                    id='R&DsalesVal',
+                    id='RDsalesVal',
                     min=0,
                     max=10,
                     value=0,
@@ -326,14 +271,22 @@ app.layout = html.Div(id='my-div',children=[
             html.Div(id='x_axis', children=[
                 dcc.Dropdown(
                     id='x_axisVal',
-                    options=[{'label': 'OM', 'value': 1},{'label': 'TCM', 'value': 2},{'label': 'Berry Ratiio', 'value': 3}],
-                    value=1,
+                    options=[{'label': 'OM', 'value': 'OM'},{'label': 'TCM', 'value': 'TCM'},{'label': 'BerryRatio', 'value': 'BerryRatio'}],
+                    value='OM',
                     style={'padding':'5px','width':'100%'}
                 )
             ]),
 
             #Filter Button
-            html.Button('CALCULATE', id='filButton',style={'margin-top': '25px', 'width': '100%', 'height': '10%','color':'white','background-color': '#3a7cef','letter-spacing':'0.1rem'})
+            html.Button('SEARCH', id='filButton',style={
+                'margin-top': '25px',
+                'width': '100%',
+                'height': '10%',
+                'color':'white',
+                'background-color': '#3a7cef',
+                'letter-spacing':'0.1rem',
+                'font-size':'large'
+                })
             
         ], style={
             'width': 'calc(100%  *1.5/ 10)',
@@ -372,7 +325,7 @@ app.layout = html.Div(id='my-div',children=[
                 html.Div(id='selectedcompanies',children=[
                     
                 ], style={
-                    'height': '40vh',
+                    'height': '60vh',
                     'float': 'bottom',
                     'display': 'block',
                     'overflow-x': 'scroll',
@@ -382,10 +335,7 @@ app.layout = html.Div(id='my-div',children=[
                     'padding': '15px',
                     'position': 'relative',
                     'box-shadow': '2px 2px 2px lightgrey'
-                }),
-
-                #Output Button
-                html.Button('Output', id='outputButton',style={'margin-top': '25px', 'width': '100%', 'height': '10%','color':'white','background-color': '#3a7cef','letter-spacing':'0.1rem'})
+                })
 
         ], style={
             'width': 'calc(100% / 5)',
@@ -435,11 +385,21 @@ def update_target_company(value):
      dash.dependencies.State(component_id='USSICVal', component_property='value'),
      dash.dependencies.State(component_id='AvailableYearsVal', component_property='value'),
      dash.dependencies.State(component_id='3yrLossVal', component_property='value'),
-     dash.dependencies.State(component_id='ProductVal', component_property='value')]
+     dash.dependencies.State(component_id='ProductVal', component_property='value'),
+     dash.dependencies.State(component_id='MainactivityVal', component_property='value'),
+     dash.dependencies.State(component_id='RDsalesVal', component_property='value'),
+     dash.dependencies.State(component_id='SGAsalesVal', component_property='value'),
+     dash.dependencies.State(component_id='x_axisVal', component_property='value')
+     ]
 )
 
-def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVal,AvailableYearsVal,yrLossVal,ProductVal):
+def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVal,AvailableYearsVal,yrLossVal,ProductVal,MainactivityVal,RDsalesVal,SGAsalesVal,x_axisVal):
+    global fil_df
     fil_df = df_basic.copy()
+    
+    #Covered Year
+    YearSpan= CoveredYearVal[1]+1 - CoveredYearVal[0]
+
     if  StatusVal is None or StatusVal == '' or not StatusVal:
         pass
     else:
@@ -465,15 +425,60 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
         pass
     else:
         y = ProductVal
+    
+    if MainactivityVal is None or MainactivityVal == '' or not MainactivityVal:
+        pass
+    else:
+        fil_df = fil_df[fil_df['Main_activity'].isin(MainactivityVal)]
+
+    #R&D/sales = Research_&_Development_expenses ÷ Operating_Revenue_/_Turnover
+    if RDsalesVal is None or RDsalesVal == '' or not RDsalesVal or 0:
+        pass
+    else:
+        fil_df = fil_df.assign(RDsales_total=0)
+        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+            fil_df['RDsales_total'] = fil_df['RDsales_total'] + (fil_df['Research_&_Development_expenses_th_LCU_' + str(i)] / fil_df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
+        fil_df['RD/sales'] = fil_df['RDsales_total']/(YearSpan)
+        # filter
+        fil_df = fil_df[fil_df['RD/sales'] <= RDsalesVal/100]
+
+    #SGA/sales = SGA ÷ Operating_Revenue_/_Turnover
+    if SGAsalesVal is None or SGAsalesVal == '' or not SGAsalesVal or 0:
+        pass
+    else:
+        fil_df = fil_df.assign(SGAsales_total=0)
+        for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+            fil_df['SGAsales_total'] = fil_df['SGAsales_total'] + (fil_df['SGA_' + str(i)] / fil_df['Operating_Revenue_/_Turnover_th_LCU_' + str(i)])
+        fil_df['SGA/sales'] = fil_df['SGAsales_total']/(YearSpan)
+        # filter
+        fil_df = fil_df[fil_df['SGA/sales'] <= SGAsalesVal/100]
 
     #最大100
     fil_df = fil_df.iloc[:100]
 
-    #PLI OM 2016~2018 平均
-    fil_df['OM'] = (fil_df['Operating Profits Margin_2018']+fil_df['Operating Profits Margin_2017']+fil_df['Operating Profits Margin_2016'])/3
+    #PLI OM = Operating Profit ÷ Operating Revenue 
+    fil_df['OM_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        fil_df['OM_total'] = fil_df['OM_total'] + fil_df['Operating Profits Margin_' + str(i)]
+    fil_df['OM'] = fil_df['OM_total']/(YearSpan)
+    #PLI TCM = Operating P/L ÷ (Operating Revenue - Operating P/L)
+    fil_df['TCM_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        fil_df['TCM_total'] = fil_df['TCM_total'] + fil_df['Total Cost-Markup_' + str(i)]
+    fil_df['TCM'] = fil_df['TCM_total']/(YearSpan)
+    #Berry Ratio = Gross Profit ÷ Selling, General & Administrative Expenses
+    fil_df['BerryRatio_total'] = 0
+    for i in range(CoveredYearVal[0],CoveredYearVal[1]+1):
+        fil_df['BerryRatio_total'] = fil_df['BerryRatio_total'] + fil_df['Berry Ratio_' + str(i)]
+    fil_df['BerryRatio'] = fil_df['BerryRatio_total']/(YearSpan)
+
     #横軸
-    x = 'OM'
-    #x = 'Operating Profits Margin_2018'
+    if x_axisVal is None or x_axisVal == '' or not x_axisVal:
+        pass
+    else:
+        #default = OM
+        x = x_axisVal
+    
     return  make_plot(fil_df, y, x)
 
 
@@ -492,8 +497,30 @@ def update_output_div(input_value):
             selectedlist += (data['customdata'])
         dff = fil_df[fil_df['Company_Name'].isin(selectedlist)]
 
+        output_table = dash_table.DataTable(
+            id='table',
+            columns=[{"name": i, "id": i} for i in dff.columns],
+            data=dff.to_dict('records'),
+            fixed_rows={ 'headers': True, 'data': 0 },
+            style_table={
+                'border': 'thin light solid',
+                'white-space': 'nowrap',
+                },
+            style_cell={
+                'padding':'5px',
+                'minWidth':'80px',
+                'textAlign':'left',
+                'font_family':'Arial'
+                },
+            style_header={
+                'background-color':'rgb(116,116,128)',
+                'color':'white'
+                },
+            export_format='csv',
+        )
 
-    return html.Div(generate_table(dff))
+        return output_table
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
