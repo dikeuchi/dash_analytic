@@ -16,7 +16,8 @@ df_basic = pd.read_csv('../bm_analytic/data/BM_DataSet_1000.csv', index_col=0)
 #global dataframe, filter
 fil_df = df_basic.copy()
 #master info
-df_master = df_basic[['Company_Name','Country','City','Website','Status','Indep','Number_of_employees_2018','US_SIC_Primary_code(s)_(M)','Main_activity','Primary_business_line','Full_overview']]
+df_master = df_basic[['Company_Name','Country','City','Website','Status','Indep',
+                'Number_of_employees_2018','US_SIC_Primary_code(s)_(M)','Main_activity','Primary_business_line','Full_overview']]
 
 #options
 indep = df_master['Indep'].unique()
@@ -364,7 +365,6 @@ app.layout = html.Div(id='my-div',children=[
     Output(component_id='companyinfo', component_property='children'),
     [Input(component_id='dropdown-target', component_property='value')]
 )
-
 def update_target_company(value):
     if value is None or value == '' or not value:
         return
@@ -392,7 +392,6 @@ def update_target_company(value):
      dash.dependencies.State(component_id='x_axisVal', component_property='value')
      ]
 )
-
 def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVal,AvailableYearsVal,yrLossVal,ProductVal,MainactivityVal,RDsalesVal,SGAsalesVal,x_axisVal):
     global fil_df
     fil_df = df_basic.copy()
@@ -438,7 +437,6 @@ def filtering_data(n_clicks,CoveredYearVal,StatusVal,IndepVal,CountryVal,USSICVa
     Output(component_id='selectedcompanies', component_property='children'),
     [Input(component_id='graph', component_property='selectedData')]
 )
-
 def update_output_div(input_value):
     if input_value is None or input_value == '' or not input_value:
         dff = fil_df[fil_df['Company_Name']=='']
