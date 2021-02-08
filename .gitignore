@@ -135,3 +135,6 @@ dmypy.json
 BM_DataSet.csv
 doc2vec.model_M
 doc2vec.model_M.docvecs.vectors_docs.npy
+
+# .vscode
+.vscode
